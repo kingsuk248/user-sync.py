@@ -55,6 +55,7 @@ class SignSyncEngine:
         sign_orgs = sync_config.get_list('sign_orgs')
         self.connectors = {cfg.get('console_org'): SignConnector(cfg) for cfg in sign_orgs}
         self.create_new_users = sync_config.get_bool("create_new_users")
+        self.deactivate_sign_only_users = sync_config.get_bool("deactivate_sign_only_users")
 
     def run(self, directory_groups, directory_connector):
         """
@@ -75,6 +76,8 @@ class SignSyncEngine:
                 self.logger.info("Creating new Sign group: {}".format(new_group))
                 sign_connector.create_group(new_group)
             self.update_sign_users(directory_users, sign_connector, org_name)
+            if self.deactivate_sign_only_users:
+                self.deactivate_sign_users(directory_users, sign_connector)
 
     def update_sign_users(self, directory_users, sign_connector, org_name):
         sign_users = sign_connector.get_users()
@@ -282,5 +285,24 @@ class SignSyncEngine:
             directory_user['email'], assignment_group, insert_data['roles']))
         except AssertionException as e:
             self.logger.error(format(e))
+        return
+
+    def deactivate_sign_users(self, directory_users, sign_connector):
+        sign_users = sign_connector.get_users()
+        director_users_emails = []
+        for directory_user in directory_users.values():
+            director_users_emails.append(directory_user['email'].lower())
+        for _, sign_user in sign_users.items():
+            if sign_user['email'].lower() not in director_users_emails:
+                self.deactivate_user(sign_connector, sign_user)
+
+    def deactivate_user(self, sign_connector, sign_user):
+        deactivation_data = {
+                "userStatus": 'INACTIVE'
+        }
+        try:
+            sign_connector.deactivate_user(sign_user['userId'], deactivation_data)
+        except AssertionException as e:
+            self.logger.error("Error deactivating user {}, {}".format(sign_user['email'], e))
         return
 
