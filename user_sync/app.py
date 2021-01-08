@@ -336,7 +336,12 @@ def run_sync(config_loader, begin_work):
 @main.command(short_help="Generate conf files, certificates and shell scripts")
 @click.help_option('-h', '--help')
 @click.pass_context
-def init(ctx):
+@click.option('--generate', '-g',
+              help="Generate all or basic config files",
+              type=str,
+              metavar="all",
+              required=False)
+def init(ctx, generate):
     """
     Generates configuration files, an X509 certificate/keypair, and the batch files for running the user-sync tool
     in test and live mode.
@@ -347,14 +352,19 @@ def init(ctx):
     sync = 'user-sync-config.yml'
     umapi = 'connector-umapi.yml'
     ldap = 'connector-ldap.yml'
-    ctx.forward(example_config, root=sync, umapi=umapi, ldap=ldap)
+    okta = 'connector-okta.yml'
+    csv = 'connector-csv.yml'
+    console = 'connector-adobe-console.yml'
+    extension = 'extension-config.yml'
+    ctx.forward(example_config, generate, root=sync, umapi=umapi, ldap=ldap,
+                okta=okta, csv=csv, console=console, extension=extension)
 
 
 @main.command(short_help="Generate invocation scripts")
 @click.help_option('-h', '--help')
 @click.option('-p', '--platform', help="Platform for which to generate scripts [default: current system platform]",
               type=click.Choice(['win', 'linux'], case_sensitive=False))
-def shell_scripts(platform):
+def shell_scripts(platform, generate=None):
     """Generate invocation shell scripts for the given platform."""
     if platform is None:
         platform = 'win' if 'win' in sys.platform.lower() else 'linux'
@@ -389,25 +399,51 @@ def docs():
               prompt='UMAPI Config Filename', default='connector-umapi.yml')
 @click.option('--ldap', help="Filename of LDAP credential config file",
               prompt='LDAP Config Filename', default='connector-ldap.yml')
-def example_config(**kwargs):
+@click.option('--okta', help="Filename of OKTA credential config file",
+              prompt='LDAP Config Filename', default='connector-ldap.yml')
+@click.option('--csv', help="Filename of CSV config file",
+              prompt='LDAP Config Filename', default='connector-ldap.yml')
+@click.option('--console', help="Filename of connector adobe console config file",
+              prompt='LDAP Config Filename', default='connector-ldap.yml')
+@click.option('--extension', help="Filename of extension config file",
+              prompt='LDAP Config Filename', default='connector-ldap.yml')                                                           
+@click.option('--generate', help="Generate all or basic config files", default=None)              
+def example_config(generate=None, **kwargs):
     """Generate example configuration files"""
     res_files = {
-        'root': os.path.join('examples', 'user-sync-config.yml'),
-        'umapi': os.path.join('examples', 'connector-umapi.yml'),
-        'ldap': os.path.join('examples', 'connector-ldap.yml'),
+        'root': os.path.join('examples', 'config files - basic', 'user-sync-config.yml'),
+        'umapi': os.path.join('examples', 'config files - basic', 'connector-umapi.yml'),
+        'ldap': os.path.join('examples', 'config files - basic', 'connector-ldap.yml'),
     }
 
+    if generate == 'all':
+        res_files['okta'] = os.path.join(
+            'examples', 'config files - basic', 'connector-okta.yml')
+        res_files['csv'] = os.path.join(
+            'examples', 'config files - basic', 'connector-csv.yml')
+        res_files['console'] = os.path.join(
+            'examples', 'config files - basic', 'connector-adobe-console.yml')
+        res_files['extension'] = os.path.join(
+            'examples', 'config files - custom attributes and mappings', 'extension-config.yml')
+
     for k, fname in kwargs.items():
-        target = Path.cwd() / fname
+        #target = Path.cwd() / fname
+        subdir = ''
+        if k in ['root', 'umapi', 'ldap', 'okta', 'csv', 'console']:
+            subdir = 'config files - basic'
+        elif k in ['extension']:
+            subdir = 'config files - custom attributes and mappings'
+        target = Path(os.path.join(Path.cwd(), subdir, fname))
         assert k in res_files, "Invalid option specified"
         res_file = user_sync.resource.get_resource(res_files[k])
         assert res_file is not None, "Resource file '{}' not found".format(res_files[k])
         if target.exists() and not click.confirm('\nWarning - file already exists: \n{}\nOverwrite?'.format(target)):
             continue
+        os.makedirs(os.path.dirname(target), exist_ok=True)
         click.echo("Generating file '{}'".format(fname))
         with open(res_file, 'r') as file:
             content = file.read()
-        with open(target, 'w') as file:
+        with open(target, 'w+') as file:
             file.write(content)
 
 
@@ -569,7 +605,7 @@ def decrypt(output_file, password, key_path):
 @click.option('--randomize', '-r', help='Randomize the values rather than entering credentials', is_flag=True)
 @click.option('--key', '-k', help='Set a custom output path for private key', default='private.key')
 @click.option('--certificate', '-c', help='Set a custom output path for certificate', default='certificate_pub.crt')
-def certgen(randomize, key, certificate, overwrite):
+def certgen(randomize, key, certificate, overwrite, generate=None):
     """
     Generates an X509 certificate/keypair with random or user-specified subject.
     User Sync Tool can use these files to communicate with the admin console.
