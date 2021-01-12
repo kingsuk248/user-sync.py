@@ -208,14 +208,12 @@ def sign_sync(**kwargs):
     try:
         run_sync(sign_config.SignConfigLoader(kwargs), begin_work_sign)
     except ConfigValidationError as e:
-        logger.critical(
-            'Schema validation failed. Detailed message: {}'.format(e))
+        logger.critical('Schema validation failed. Detailed message: {}'.format(e))
 
 
 def begin_work_sign(sign_config_loader):
     sign_engine_config = sign_config_loader.get_engine_options()
-    directory_connector, directory_groups = load_directory_config(
-        sign_config_loader)
+    directory_connector, directory_groups = load_directory_config(sign_config_loader)
     sign_engine = SignSyncEngine(sign_engine_config)
     sign_engine.run(directory_groups, directory_connector)
 
@@ -226,8 +224,7 @@ def begin_work_umapi(config_loader):
     """
 
     umapi_engine_config = config_loader.get_engine_options()
-    directory_connector, directory_groups = load_directory_config(
-        config_loader, umapi_engine_config['new_account_type'])
+    directory_connector, directory_groups = load_directory_config(config_loader, umapi_engine_config['new_account_type'])
 
     # make sure that all the adobe groups are from known umapi connector names
     primary_umapi_config, secondary_umapi_configs = config_loader.get_target_options()
@@ -237,11 +234,9 @@ def begin_work_umapi(config_loader):
             umapi_name = group.umapi_name
             if umapi_name != PRIMARY_TARGET_NAME:
                 referenced_umapi_names.add(umapi_name)
-    referenced_umapi_names.difference_update(
-        six.iterkeys(secondary_umapi_configs))
+    referenced_umapi_names.difference_update(six.iterkeys(secondary_umapi_configs))
     if len(referenced_umapi_names) > 0:
-        raise AssertionException(
-            'Adobe groups reference unknown umapi connectors: %s' % referenced_umapi_names)
+        raise AssertionException('Adobe groups reference unknown umapi connectors: %s' % referenced_umapi_names)
 
     config_loader.check_unused_config_keys()
 
@@ -257,20 +252,17 @@ def begin_work_umapi(config_loader):
                 "Failed to enable dynamic group mappings. 'dynamic_group_member_attribute' is not defined in config")
 
     primary_name = '.primary' if secondary_umapi_configs else ''
-    umapi_primary_connector = UmapiConnector(
-        primary_name, primary_umapi_config)
+    umapi_primary_connector = UmapiConnector(primary_name, primary_umapi_config)
     umapi_other_connectors = {}
     for secondary_umapi_name, secondary_config in six.iteritems(secondary_umapi_configs):
         umapi_secondary_conector = UmapiConnector(".secondary.%s" % secondary_umapi_name,
                                                   secondary_config)
         umapi_other_connectors[secondary_umapi_name] = umapi_secondary_conector
-    umapi_connectors = user_sync.engine.umapi.UmapiConnectors(
-        umapi_primary_connector, umapi_other_connectors)
+    umapi_connectors = user_sync.engine.umapi.UmapiConnectors(umapi_primary_connector, umapi_other_connectors)
 
     rule_processor = user_sync.engine.umapi.RuleProcessor(umapi_engine_config)
     if len(directory_groups) == 0 and rule_processor.will_process_groups():
-        logger.warning(
-            'No group mapping specified in configuration but --process-groups requested on command line')
+        logger.warning('No group mapping specified in configuration but --process-groups requested on command line')
     rule_processor.run(directory_groups, directory_connector, umapi_connectors)
 
 
@@ -283,12 +275,9 @@ def load_directory_config(config_loader, new_account_type=None):
     directory_connector_options = None
     directory_connector_module_name = config_loader.get_directory_connector_module_name()
     if directory_connector_module_name is not None:
-        directory_connector_module = __import__(
-            directory_connector_module_name, fromlist=[''])
-        directory_connector = user_sync.connector.directory.DirectoryConnector(
-            directory_connector_module)
-        directory_connector_options = config_loader.get_directory_connector_options(
-            directory_connector.name)
+        directory_connector_module = __import__(directory_connector_module_name, fromlist=[''])
+        directory_connector = user_sync.connector.directory.DirectoryConnector(directory_connector_module)
+        directory_connector_options = config_loader.get_directory_connector_options(directory_connector.name)
 
     if directory_connector is not None and directory_connector_options is not None:
         # specify the default user_identity_type if it's not already specified in the options
@@ -305,11 +294,9 @@ def run_sync(config_loader, begin_work):
     try:
         init_log(config_loader.get_logging_config())
 
-        test_mode = " (TEST MODE)" if config_loader.get_invocation_options()[
-            'test_mode'] else ''
+        test_mode = " (TEST MODE)" if config_loader.get_invocation_options()['test_mode'] else ''
         # add start divider, app version number, and invocation parameters to log
-        run_stats = user_sync.helper.JobStats(
-            'Run (User Sync version: ' + app_version + ')' + test_mode, divider='=')
+        run_stats = user_sync.helper.JobStats('Run (User Sync version: ' + app_version + ')' + test_mode, divider='=')
         run_stats.log_start(logger)
         log_parameters(sys.argv[1:], config_loader)
 
@@ -322,8 +309,7 @@ def run_sync(config_loader, begin_work):
             finally:
                 lock.unlock()
         else:
-            logger.critical(
-                "A different User Sync process is currently running.")
+            logger.critical("A different User Sync process is currently running.")
 
     except AssertionException as e:
         if not e.is_reported():
@@ -365,8 +351,12 @@ def init(ctx):
     csv = 'connector-csv.yml'
     console = 'connector-adobe-console.yml'
     extension = 'extension-config.yml'
+    remove_list = 'remove-list.csv'
+    users_file_custom = 'users-file-with-custom-attributes-and-mappings.csv'
+    users_file = 'users-file.csv'
     ctx.forward(example_config, root=sync, umapi=umapi, ldap=ldap,
-                okta=okta, csv=csv, console=console, extension=extension)
+                okta=okta, csv=csv, console=console, extension=extension, 
+                remove_list=remove_list, users_file_custom=users_file_custom, users_file=users_file)
 
 
 @main.command(short_help="Generate invocation scripts")
@@ -377,8 +367,7 @@ def shell_scripts(platform):
     """Generate invocation shell scripts for the given platform."""
     if platform is None:
         platform = 'win' if 'win' in sys.platform.lower() else 'linux'
-    shell_scripts = user_sync.resource.get_resource_dir(
-        'shell_scripts/{}'.format(platform))
+    shell_scripts = user_sync.resource.get_resource_dir('shell_scripts/{}'.format(platform))
     for script in shell_scripts:
         with open(script, 'r') as fh:
             content = fh.read()
@@ -409,37 +398,31 @@ def docs():
               prompt='UMAPI Config Filename', default='connector-umapi.yml')
 @click.option('--ldap', help="Filename of LDAP credential config file",
               prompt='LDAP Config Filename', default='connector-ldap.yml')
-@click.option('--okta', help="Filename of OKTA credential config file",
-              prompt='LDAP Config Filename', default='connector-ldap.yml')
-@click.option('--csv', help="Filename of CSV config file",
-              prompt='LDAP Config Filename', default='connector-ldap.yml')
-@click.option('--console', help="Filename of connector adobe console config file",
-              prompt='LDAP Config Filename', default='connector-ldap.yml')
-@click.option('--extension', help="Filename of extension config file",
-              prompt='LDAP Config Filename', default='connector-ldap.yml')
-@click.option('--full', type=bool, help="Generate all or selected config files", required=False, default=None)
-def example_config(full=True, **kwargs):
+@click.option('--examples', type=bool, help="Generate all or selected config files", required=False, default=None)
+def example_config(examples=True, **kwargs):
     """Generate example configuration files"""
     res_files = {
-        'root': os.path.join('examples', 'config files - basic', 'user-sync-config.yml'),
-        'umapi': os.path.join('examples', 'config files - basic', 'connector-umapi.yml'),
-        'ldap': os.path.join('examples', 'config files - basic', 'connector-ldap.yml'),
+        'root': os.path.join('examples', 'user-sync-config.yml'),
+        'umapi': os.path.join('examples', 'connector-umapi.yml'),
+        'ldap': os.path.join('examples', 'connector-ldap.yml'),
         'okta': os.path.join('examples', 'config files - basic', 'connector-okta.yml'),
         'csv': os.path.join('examples', 'config files - basic', 'connector-csv.yml'),
         'console': os.path.join('examples', 'config files - basic', 'connector-adobe-console.yml'),
-        'extension': os.path.join('examples', 'config files - custom attributes and mappings', 'extension-config.yml')
+        'extension': os.path.join('examples', 'config files - custom attributes and mappings', 'extension-config.yml'),
+        'remove_list': os.path.join('examples', 'csv inputs - user and remove lists', 'remove-list.csv'),
+        'users_file_custom': os.path.join('examples', 'csv inputs - user and remove lists', 'users-file-with-custom-attributes-and-mappings.csv'),
+        'users_file': os.path.join('examples', 'csv inputs - user and remove lists', 'users-file.csv')
     }
 
-    if not full:
-        res_files = {config: res_files[config] for config in res_files
+    if not examples:
+        res_files = {config: kwargs[config] for config in res_files
                      if config in kwargs}
 
-    for k, fname in res_files.items():
+    for k, fname in kwargs.items():
         target = Path(fname)
         assert k in res_files, "Invalid option specified"
         res_file = user_sync.resource.get_resource(res_files[k])
-        assert res_file is not None, "Resource file '{}' not found".format(
-            res_files[k])
+        assert res_file is not None, "Resource file '{}' not found".format(res_files[k])
         if target.exists() and not click.confirm('\nWarning - file already exists: \n{}\nOverwrite?'.format(target)):
             continue
         os.makedirs(os.path.dirname(target), exist_ok=True)
@@ -458,35 +441,29 @@ def example_config(full=True, **kwargs):
               prompt='Sign Sync Config Filename', default='connector-sign.yml')
 @click.option('--ldap', help="Filename of LDAP credential config file",
               prompt='LDAP Config Filename', default='connector-ldap.yml')
-@click.option('--full', type=bool, help="Generate all or selected config files", required=False, default=None)
-def example_config_sign(full=True, **kwargs):
+@click.option('--examples', type=bool, help="Generate all or selected config files", 
+              required=False, default=None)
+def example_config_sign(**kwargs):
     """Generate Sign Sync Config"""
     res_files = {
         'root': os.path.join('examples', 'sign', 'sign-sync-config.yml'),
         'sign': os.path.join('examples', 'sign', 'connector-sign.yml'),
         'ldap': os.path.join('examples', 'sign', 'connector-ldap.yml'),
     }
-
-    if not full:
-        res_files = {config: res_files[config] for config in res_files
-                     if config in kwargs}
-
+        
     for k, fname in kwargs.items():
-        target = Path(fname)
+        target = Path.cwd() / fname
         assert k in res_files, "Invalid option specified"
         res_file = user_sync.resource.get_resource(res_files[k])
-        assert res_file is not None, "Resource file '{}' not found".format(
-            res_files[k])
+        assert res_file is not None, "Resource file '{}' not found".format(res_files[k])
         if target.exists() and not click.confirm('\nWarning - file already exists: \n{}\nOverwrite?'.format(target)):
             continue
-        os.makedirs(os.path.dirname(target), exist_ok=True)
         click.echo("Generating file '{}'".format(fname))
         with open(res_file, 'r') as file:
             content = file.read()
         with open(target, 'w') as file:
             file.write(content)
-
-
+            
 def init_log(logging_config):
     """
     :type logging_config: user_sync.config.DictConfig
@@ -497,8 +474,7 @@ def init_log(logging_config):
             count = int(count)
             total = int(total)
             percent_done = round(100*count/total, 1) if total > 0 else 0
-            message = "{0}/{1} ({2}%) {3}".format(count,
-                                                  total, percent_done, message)
+            message = "{0}/{1} ({2}%) {3}".format(count, total, percent_done, message)
         if message:
             self._log(logging.INFO, message, args, **kws)
     logging.Logger.progress = progress
@@ -524,8 +500,7 @@ def init_log(logging_config):
     console_log_level = level_lookup.get(options['console_log_level'])
     if console_log_level is None:
         console_log_level = logging.INFO
-        logger.log(logging.WARNING, 'Unknown console log level: %s setting to info' %
-                   options['console_log_level'])
+        logger.log(logging.WARNING, 'Unknown console log level: %s setting to info' % options['console_log_level'])
     console_log_handler.setLevel(console_log_level)
 
     if options['log_to_file']:
@@ -538,17 +513,13 @@ def init_log(logging_config):
         if not os.path.exists(file_log_directory):
             os.makedirs(file_log_directory)
 
-        file_path = os.path.join(
-            file_log_directory, options['file_log_name_format'].format(datetime.now()))
+        file_path = os.path.join(file_log_directory, options['file_log_name_format'].format(datetime.now()))
         file_handler = logging.FileHandler(file_path)
         file_handler.setLevel(file_log_level)
-        file_handler.setFormatter(logging.Formatter(
-            LOG_STRING_FORMAT, LOG_DATE_FORMAT))
+        file_handler.setFormatter(logging.Formatter(LOG_STRING_FORMAT, LOG_DATE_FORMAT))
         logging.getLogger().addHandler(file_handler)
         if unknown_file_log_level:
-            logger.log(logging.WARNING, 'Unknown file log level: %s setting to info' %
-                       options['file_log_level'])
-
+            logger.log(logging.WARNING, 'Unknown file log level: %s setting to info' % options['file_log_level'])
 
 def log_parameters(argv, config_loader):
     """
@@ -567,7 +538,6 @@ def log_parameters(argv, config_loader):
     for parameter_name, parameter_value in six.iteritems(config_loader.get_invocation_options()):
         logger.debug('  %s: %s', parameter_name, parameter_value)
     logger.info('-------------------------------------')
-
 
 @click.option('--password', '-p', prompt='Create password', hide_input=True, confirmation_prompt=True)
 def encrypt(output_file, password, key_path):
@@ -647,8 +617,7 @@ def certgen(randomize, key, certificate, overwrite):
         subject_fields = user_sync.certgen.get_subject_fields(randomize)
         user_sync.certgen.generate(key, certificate, subject_fields)
         click.echo("----------------------------------------------------")
-        click.echo("Success! Files were created at:\n{0}\n{1}".format(
-            key, certificate))
+        click.echo("Success! Files were created at:\n{0}\n{1}".format(key, certificate))
     except AssertionException as e:
         click.echo("Error creating keypair: " + str(e))
         click.echo('Files have not been created/overwritten.')
