@@ -399,7 +399,7 @@ def docs():
 @click.option('--ldap', help="Filename of LDAP credential config file",
               prompt='LDAP Config Filename', default='connector-ldap.yml')
 @click.option('--examples', type=bool, help="Generate all or selected config files", required=False, default=None)
-def example_config(examples=True, **kwargs):
+def example_config(examples=False, **kwargs):
     """Generate example configuration files"""
     res_files = {
         'root': os.path.join('examples', 'user-sync-config.yml'),
@@ -418,7 +418,7 @@ def example_config(examples=True, **kwargs):
         res_files = {config: kwargs[config] for config in res_files
                      if config in kwargs}
 
-    for k, fname in kwargs.items():
+    for k, fname in res_files.items():
         target = Path(fname)
         assert k in res_files, "Invalid option specified"
         res_file = user_sync.resource.get_resource(res_files[k])
@@ -443,21 +443,26 @@ def example_config(examples=True, **kwargs):
               prompt='LDAP Config Filename', default='connector-ldap.yml')
 @click.option('--examples', type=bool, help="Generate all or selected config files", 
               required=False, default=None)
-def example_config_sign(**kwargs):
+def example_config_sign(examples=False, **kwargs):
     """Generate Sign Sync Config"""
     res_files = {
         'root': os.path.join('examples', 'sign', 'sign-sync-config.yml'),
         'sign': os.path.join('examples', 'sign', 'connector-sign.yml'),
         'ldap': os.path.join('examples', 'sign', 'connector-ldap.yml'),
     }
+
+    if not examples:
+        res_files = {config: kwargs[config] for config in res_files
+                     if config in kwargs}
         
-    for k, fname in kwargs.items():
+    for k, fname in res_files.items():
         target = Path.cwd() / fname
         assert k in res_files, "Invalid option specified"
         res_file = user_sync.resource.get_resource(res_files[k])
         assert res_file is not None, "Resource file '{}' not found".format(res_files[k])
         if target.exists() and not click.confirm('\nWarning - file already exists: \n{}\nOverwrite?'.format(target)):
             continue
+        os.makedirs(os.path.dirname(target), exist_ok=True)
         click.echo("Generating file '{}'".format(fname))
         with open(res_file, 'r') as file:
             content = file.read()
