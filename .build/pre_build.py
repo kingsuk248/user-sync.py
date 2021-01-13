@@ -61,3 +61,4 @@ if __name__ == '__main__':
     bundle_example_config('config files - basic')
     bundle_example_config('config files - custom attributes and mappings')
     bundle_example_config('sign')
+    bundle_example_config('csv inputs - user and remove lists')
